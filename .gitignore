@@ -1,0 +1,47 @@
+# --- Anchor & Solana ---
+.anchor/
+target/
+deploy/
+dist/
+node_modules/
+test-ledger/
+*.local.json
+.DS_Store
+
+# Program Credentials (CRITICAL: Never leak your private keys)
+*-keypair.json
+programids.json
+
+# --- Rust/Cargo ---
+# The 'target' folder is already covered, but specifically for Rust:
+**/*.rs.bk
+Cargo.lock
+
+# --- Next.js / Frontend ---
+# Build outputs
+.next/
+out/
+build/
+
+# Dependency directories
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environmental variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- IDEs & OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
