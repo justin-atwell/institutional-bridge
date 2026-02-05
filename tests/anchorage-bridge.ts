@@ -31,4 +31,39 @@ describe("anchorage-bridge", () => {
     expect(account.owner.toBase58()).to.equal(provider.wallet.publicKey.toBase58());
     expect(account.collateralAmount.toNumber()).to.equal(0);
   });
+
+  it("Toggles the Emergency Freeze", async () => {
+  const [globalStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("global-state")],
+    program.programId
+  );
+
+  // 1. Turn the freeze ON
+  await program.methods
+    .toggleFreeze(true)
+    .accountsStrict({
+      globalState: globalStatePda,
+      authority: provider.wallet.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    })
+    .rpc();
+
+  let state = await program.account.globalState.fetch(globalStatePda);
+  expect(state.isFrozen).to.be.true;
+  console.log("❄️ Bridge is now FROZEN");
+
+  // 2. Turn the freeze OFF
+  await program.methods
+    .toggleFreeze(false)
+    .accountsStrict({
+      globalState: globalStatePda,
+      authority: provider.wallet.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    })
+    .rpc();
+
+  state = await program.account.globalState.fetch(globalStatePda);
+  expect(state.isFrozen).to.be.false;
+  console.log("✅ Bridge is now ACTIVE");
+});
 });
