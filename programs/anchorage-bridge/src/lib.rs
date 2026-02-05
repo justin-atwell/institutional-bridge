@@ -33,6 +33,36 @@ pub mod anchorage_bridge {
         msg!("Transfer approved by Anchorage Bridge.");
         Ok(())
     }
+
+    pub fn atomic_rebalance(ctx: Context<Rebalance>, _amount: u64) -> Result<()> {
+        let vault = &mut ctx.accounts.vault_account;
+
+        //safety check. is bridge frozedd
+        if ctx.accounts.global_state.is_frozen {
+            return Err(error!(ErrorCode::BridgeIsFrozen));
+        }
+
+        // 2. Logic: Update the vault's tracking
+        // In a real scenario, this would include a CPI (Cross-Program Invocation)
+        // to actually move the tokens from the user to the vault.
+        vault.collateral_amount = vault.collateral_amount
+            .checked_add(_amount)
+            .ok_or(error!(ErrorCode::MathOverflow))?;
+
+        msg!("Rebalanced {} USDPT. New Vault Total: {}", _amount, vault.collateral_amount);
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct Rebalance<'info> {
+    #[account(mut,seeds = [b"vault", authority.key().as_ref()], bump)]
+    pub vault_account: Account<'info, VaultState>,
+
+    #[account(seeds = [b"global-state"], bump)]
+    pub global_state: Account<'info, GlobalState>,
+
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -108,4 +138,6 @@ pub struct VaultState {
 pub enum ErrorCode {
     #[msg("The bridge is currently frozen by the bank.")]
     BridgeIsFrozen,
+    #[msg("Math operation overflowed.")]
+    MathOverflow,
 }
