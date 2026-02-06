@@ -57,7 +57,7 @@ export default function BridgeDashboard() {
       const amount = account.collateralAmount || account.amount || 0;
 
       // If it's an Anchor BN (BigNumber), we use .toNumber()
-      setVaultBalance(typeof amount === 'object' ? amount.toNumber() : amount);
+      setVaultBalance(account.collateralAmount.toNumber());
 
     } catch (e) {
       console.error("Fetch failed", e);
@@ -76,9 +76,8 @@ export default function BridgeDashboard() {
     );
 
     try {
-      // Calling the toggle_freeze with 'false' will trigger the 'init' 
-      // if you set it up with 'init_if_needed' in Rust.
-      // If you have a separate 'initialize' function, call that instead!
+      addLog("🛠️ Initializing Global State...");
+      // Calling toggleFreeze with 'false' triggers the 'init' logic in your Rust code
       await program.methods
         .toggleFreeze(false)
         .accounts({
@@ -88,13 +87,13 @@ export default function BridgeDashboard() {
         })
         .rpc();
 
+      addLog("Global State Initialized!");
       alert("System Initialized on Localhost!");
     } catch (err) {
       console.error("Initialization failed:", err);
-      alert("Check console - you may need to check your Rust function name.");
+      // If it says 'already in use', that's actually fine!
     }
   };
-
   const handleToggleFreeze = async () => {
     if (!wallet) return alert("Please connect your wallet first!");
 
@@ -136,12 +135,18 @@ export default function BridgeDashboard() {
       program.programId
     );
 
+    const [globalStatePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("global-state")],
+      program.programId
+    );
+
     try {
       addLog("Instruction: atomicRebalance(5000)");
       await program.methods
         .atomicRebalance(new anchor.BN(5000))
         .accounts({
           vaultAccount: vaultPda,
+          globalState: globalStatePda,
           authority: wallet.publicKey,
         })
         .rpc();
@@ -183,9 +188,16 @@ export default function BridgeDashboard() {
 
       alert("🏦 Vault Initialized!");
       fetchVaultData();
-    } catch (err) {
-      console.error("Vault Init Failed:", err);
-      alert("Vault Init Failed - check console.");
+    } catch (err: any) {
+      const logs = err.logs || (err.msg ? [err.msg] : []);
+
+      // Check if the error is the "already in use" (0x0) error
+      if (logs.some((log: string) => log.includes("already in use"))) {
+        addLog("Vault already exists. Proceeding to Rebalance...");
+      } else {
+        addLog(`Init failed: ${err.message || "Unknown error"}`);
+        console.error("Initialization failed:", err);
+      }
     }
   };
 
@@ -198,7 +210,7 @@ export default function BridgeDashboard() {
           <div className="bg-blue-600 p-2 rounded-lg shadow-lg">
             <Zap size={20} className="text-white" />
           </div>
-          <h1 className="font-bold text-xl tracking-tight italic">ANCHORAGE BRIDGE</h1>
+          <h1 className="font-bold text-xl tracking-tight italic">Institutional Bridge</h1>
         </div>
 
         {/* THE EASY DEMO TOGGLE */}
