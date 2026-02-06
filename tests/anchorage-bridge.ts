@@ -24,7 +24,7 @@ describe("anchorage-bridge: Day in the Life", () => {
   );
 
   it("Executes full institutional lifecycle", async () => {
-    console.log("🚀 Starting Institutional Simulation...");
+    console.log("Starting simulation...");
 
     // 1. SETUP: Initialize Vault & Bridge State
     await program.methods.initializeVault().accountsStrict({
@@ -49,7 +49,7 @@ describe("anchorage-bridge: Day in the Life", () => {
 
     let vaultData = await program.account.vaultState.fetch(vaultPda);
     expect(vaultData.collateralAmount.toNumber()).to.equal(5000);
-    console.log("💰 Settlement Successful: Vault holds $5,000");
+    console.log("settlement Successful: Vault holds $5,000");
 
     // 3. INCIDENT: Bank triggers Emergency Freeze
     await program.methods.toggleFreeze(true).accountsStrict({
@@ -57,7 +57,7 @@ describe("anchorage-bridge: Day in the Life", () => {
       authority: provider.wallet.publicKey,
       systemProgram: anchor.web3.SystemProgram.programId,
     }).rpc();
-    console.log("❄️ ALERT: Emergency Freeze Engaged");
+    console.log("ALERT: Emergency Freeze Engaged");
 
     // 4. VERIFICATION: CFO attempts another $1,000 rebalance (Should fail)
     try {
@@ -70,7 +70,7 @@ describe("anchorage-bridge: Day in the Life", () => {
     } catch (err: any) {
       // Look for our custom Rust error code
       expect(err.error.errorCode.code).to.equal("BridgeIsFrozen");
-      console.log("🛡️ Safety Confirmed: Blocked rebalance during freeze.");
+      console.log("blocked rebalance during freeze.");
     }
 
     // 5. RECOVERY: Lift Freeze & Resume
@@ -79,6 +79,6 @@ describe("anchorage-bridge: Day in the Life", () => {
       authority: provider.wallet.publicKey,
       systemProgram: anchor.web3.SystemProgram.programId,
     }).rpc();
-    console.log("✅ Recovery: Bridge back online.");
+    console.log("Bridge back online.");
   });
 });

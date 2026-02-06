@@ -12,7 +12,6 @@ import idl from "../../../target/idl/anchorage_bridge.json";
 
 
 export default function BridgeDashboard() {
-  console.log("Checking component life..."); // <--- Add this
   // 1. STATE: This is our "Easy Demo" switch logic
   const [isTechnical, setIsTechnical] = useState(false);
   const [isFrozen, setIsFrozen] = useState(false); // Local state for the demo
@@ -20,11 +19,14 @@ export default function BridgeDashboard() {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
 
+  const [logs, setLogs] = useState<string[]>([
+    "Checking Program ID: 2vganB6...",
+    "System initialized. Ready for SVM instructions."
+  ]);
 
   // 1. Trigger the mount state so the button appears
   React.useEffect(() => {
     setMounted(true);
-    console.log("🖥️ Client-side mount detected");
   }, []);
 
   // 2. Automatically fetch data when the wallet is connected
@@ -37,30 +39,30 @@ export default function BridgeDashboard() {
 
   const [vaultBalance, setVaultBalance] = useState<number>(0);
 
-const fetchVaultData = async () => {
-  if (!wallet) return;
+  const fetchVaultData = async () => {
+    if (!wallet) return;
 
-  const provider = new anchor.AnchorProvider(connection, wallet, {});
-  const program = new anchor.Program(idl as any, provider);
+    const provider = new anchor.AnchorProvider(connection, wallet, {});
+    const program = new anchor.Program(idl as any, provider);
 
-  const [vaultPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("vault"), wallet.publicKey.toBuffer()],
-    program.programId
-  );
+    const [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), wallet.publicKey.toBuffer()],
+      program.programId
+    );
 
-  try {
-    const account = await (program.account as any)["vaultState"].fetch(vaultPda);
+    try {
+      const account = await (program.account as any)["vaultState"].fetch(vaultPda);
 
-    // Make sure the field name matches your Rust struct exactly (usually camelCase in JS)
-    const amount = account.collateralAmount || account.amount || 0;
-    
-    // If it's an Anchor BN (BigNumber), we use .toNumber()
-    setVaultBalance(typeof amount === 'object' ? amount.toNumber() : amount);
-    
-  } catch (e) {
-    console.error("Fetch failed", e);
-  }
-};
+      // Make sure the field name matches your Rust struct exactly (usually camelCase in JS)
+      const amount = account.collateralAmount || account.amount || 0;
+
+      // If it's an Anchor BN (BigNumber), we use .toNumber()
+      setVaultBalance(typeof amount === 'object' ? amount.toNumber() : amount);
+
+    } catch (e) {
+      console.error("Fetch failed", e);
+    }
+  };
 
   const handleInitialize = async () => {
     if (!wallet) return alert("Connect wallet first!");
@@ -74,7 +76,6 @@ const fetchVaultData = async () => {
     );
 
     try {
-      console.log("🛠️ Initializing Global State...");
       // Calling the toggle_freeze with 'false' will trigger the 'init' 
       // if you set it up with 'init_if_needed' in Rust.
       // If you have a separate 'initialize' function, call that instead!
@@ -118,42 +119,49 @@ const fetchVaultData = async () => {
         .rpc();
 
       setIsFrozen(!isFrozen); // Update UI state on success
-      console.log("Status Updated on Blockchain!");
     } catch (err) {
       console.error("Freeze failed:", err);
       alert("Transaction failed. Check the console for details.");
     }
   };
 
-const handleAtomicRebalance = async () => {
-  if (!wallet) return;
-  const provider = new anchor.AnchorProvider(connection, wallet, {});
-  const program = new anchor.Program(idl as any, provider);
+  const handleAtomicRebalance = async () => {
+    if (!wallet) return;
+    const provider = new anchor.AnchorProvider(connection, wallet, {});
+    const program = new anchor.Program(idl as any, provider);
 
-  const [vaultPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("vault"), wallet.publicKey.toBuffer()],
-    program.programId
-  );
+    addLog("Instruction: atomicRebalance(5000)");
+    const [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), wallet.publicKey.toBuffer()],
+      program.programId
+    );
 
-  try {
-    console.log("Triggering Atomic Rebalance...");
-    await program.methods
-      .atomicRebalance(new anchor.BN(5000)) 
-      .accounts({
-        vaultAccount: vaultPda,
-        authority: wallet.publicKey,
-      })
-      .rpc();
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    alert("Vault Balanced at $5,000!");
-    await fetchVaultData(); 
-  } catch (err) {
-    console.error("Rebalance failed:", err);
-  }
-};
+    try {
+      addLog("Instruction: atomicRebalance(5000)");
+      await program.methods
+        .atomicRebalance(new anchor.BN(5000))
+        .accounts({
+          vaultAccount: vaultPda,
+          authority: wallet.publicKey,
+        })
+        .rpc();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      alert("Vault Balanced at $5,000!");
+      await fetchVaultData();
+    } catch (err) {
+      console.error("Rebalance failed:", err);
+    }
+  };
+
+  const addLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLogs(prev => [`[${timestamp}] > ${message}`, ...prev].slice(0, 50));
+  };
 
   const handleInitVault = async () => {
     if (!wallet) return alert("Connect wallet!");
+
+    addLog("Instruction: Initializing Vault");
     const provider = new anchor.AnchorProvider(connection, wallet, {});
     const program = new anchor.Program(idl as any, provider);
 
@@ -164,7 +172,6 @@ const handleAtomicRebalance = async () => {
 
 
     try {
-      console.log("Creating Vault Account...");
       await program.methods
         .initializeVault() // Ensure this matches your Rust lib.rs exactly
         .accounts({
@@ -228,11 +235,14 @@ const handleAtomicRebalance = async () => {
                 <ConsoleIcon size={16} /> LIVE SVM EXECUTION LOGS
               </h2>
               <div className="bg-black/50 p-4 rounded-lg h-64 font-mono text-[10px] overflow-y-auto border border-emerald-900/50">
-                <p className="text-emerald-700">Checking Program ID: 2vganB6...</p>
-                <p className="text-emerald-400">&gt; Instruction: toggleFreeze(true)</p>
-                <p className="text-emerald-400">&gt; Account: global-state (PDA) derived successfully</p>
-                <p className="text-emerald-400">&gt; CU Consumed: 1,450 / 200,000</p>
-                <p className="text-emerald-600 animate-pulse">_ Streaming transactions...</p>
+                <div className="bg-black/50 p-4 rounded-lg h-64 font-mono text-[10px] overflow-y-auto border border-emerald-900/50">
+                  {logs.map((log, i) => (
+                    <p key={i} className={log.includes("ERROR") ? "text-red-400" : "text-emerald-400"}>
+                      {log}
+                    </p>
+                  ))}
+                  <p className="text-emerald-600 animate-pulse">_ Streaming transactions...</p>
+                </div>
               </div>
             </div>
             {/* --- ADMIN ACTIONS (Place this inside the Technical View block) --- */}
